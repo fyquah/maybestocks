@@ -21,7 +21,7 @@
            (into-array Double/TYPE (mapv double (mapv :volume data))))
         chart (org.jfree.chart.ChartFactory/createCandlestickChart 
                 title time-label value-label
-                ohlc-data true) ]
+                ohlc-data false) ]
       (-> chart .getPlot .getRangeAxis (.setAutoRangeIncludesZero false))
       chart))
 

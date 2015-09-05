@@ -50,7 +50,7 @@
          res [[]]]
     (if (empty? v)
       (do 
-        (filter #(>= (count %) 3) res))
+        (filter #(>= (count %) 4) res))
       (let [head-diff (double (first diff-v))
             head (double (first v))
             current-seq (peek res)]
@@ -73,16 +73,16 @@
                        ; Check if the downward slope has been confirmed by 
                        ; two transactions
                        ; Skip test if the sequence has less than 5 items
-                       (or (< (count current-seq) 5)
+                       (or (< (count current-seq) 3)
                            ; Check if the last two confirmation is implying
                            ; somethig about a downwards breakthrough
                            ; return false if a breakthrough is present
                            ; return true otherwise
                            (let [data (map #(double (second %))
-                                           (-> current-seq pop pop))
+                                           (pop current-seq))
                                  m (stats/mean data)
                                  s (stats/sd data)
-                                 candidates [(second (peek (pop current-seq)))
+                                 candidates [head
                                              (second (peek current-seq))]]
                              (not (every? #(> (abs (- m %)) (* 2 s))
                                          candidates))))
