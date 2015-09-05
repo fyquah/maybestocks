@@ -25,10 +25,12 @@
   Factors to consider:
   1. Check for significant change in the standard deviation distribution (either via
   polarity or value)
-  2. Check if price leaves a certain range, governed by the standard deviation
+  2. Check if price leaves a certain range, governed by the standard deviation.
+  3. When a point tries to leave its 'containing box', it is given a tollerance of
+  (ceiling/floor - rollingmean) * sensitivity
   
   Should not be too hard to change this to a trend seeker (i.e, detect points which
-  follow trends)"
+  follow trends rather than floors / ceilings)"
   [sensitivity x-in v-in]
   (loop [x (next x-in)
          v (next v-in)
