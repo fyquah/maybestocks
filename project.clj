@@ -8,6 +8,7 @@
                  [mysql/mysql-connector-java "5.1.36"]
                  [org.clojure/clojure "1.7.0"]
                  [net.mikera/core.matrix "0.40.0"]
+                 [net.mikera/core.matrix.stats "0.7.0"]
                  [incanter "1.5.6"]]
   :profiles {:dev
              {:aot  [flambo.function]}
