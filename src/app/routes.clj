@@ -23,8 +23,11 @@
                                (and (= :symbol symbol)
                                     (>= :date_ex fromDateString)
                                     (<= :date_ex toDateString)))))
-          _ (println (first data))]
-      {:body (json/write-str data)})
+          timestamp (map :date data)
+          close (map :close data)
+          flat-seq (stocks.utils/flat-seeker 0.15 timestamp close)]
+      {:body (json/write-str {:data data
+                              :flat flat-seq})})
      "application/json")))
 
 (defroutes app-routes

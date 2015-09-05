@@ -1,5 +1,6 @@
 const React = require("react");
 const utils = require("../utils.js");
+const ChartComponent = require("./chart.js");
 
 const parseDateString = (dateString) =>  {
     if (typeof dateString === "object") {
@@ -17,21 +18,41 @@ module.exports = React.createClass({
         const to = parseDateString(this.props.to || utils.date());
         const symbol = this.props.symbol || "AAPL";
 
+        console.log(from);
+        console.log(from.getMonth());
+        console.log(from.getFullYear());
+        console.log(to.getMonth());
+        console.log(to.getFullYear());
+
         utils.httpGet(encodeURI("/prices?" + utils.toQueryString({
             fromMonth: from.getMonth(),
-            fromYear: from.getYear(),
+            fromYear: from.getFullYear(),
             toMonth: to.getMonth(),
-            toYear: to.getYear(),
+            toYear: to.getFullYear(),
             symbol: symbol
         }))).
-            then((res) => {
-                console.log(res);
-            }).
-            catch((a,b,c) => {
-                console.log("An error occured");
-            });
+        then((res) => {
+            console.log(res);
+            this.setState({
+                data:           res.data,
+                flat_segments:  res.flat
+            })
+        }).
+        catch((a,b,c) => {
+            console.log("An error occured");
+            console.log(a, b, c);
+        });
+    },
+    getInitialState: function() {
+        return {};
     },
     render: function(){
-        return (<div className="container">Hello world</div>);
+        console.log("Rerender");
+        console.log(this.state);
+        return (
+            <div className="container">
+                <ChartComponent data={this.state.data} />
+            </div>
+        );
     }
 });

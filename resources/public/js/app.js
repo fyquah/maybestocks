@@ -28996,15 +28996,96 @@ var $ = jQuery;
 var React = require("react");
 var MainComponent = require("./components/main.js");
 
-React.render(React.createElement(MainComponent, { from: "09/2017" }), document.getElementById("app"));
+React.render(React.createElement(MainComponent, { from: "09/2012" }), document.getElementById("app"));
 
-},{"./components/main.js":159,"jQuery":2,"react":157}],159:[function(require,module,exports){
+},{"./components/main.js":160,"jQuery":2,"react":157}],159:[function(require,module,exports){
+"use strict";
+
+var React = require("react");
+var utils = require("../utils.js");
+
+module.exports = React.createClass({
+        displayName: "exports",
+
+        renderChart: function renderChart(input_data) {
+                if (!input_data) {
+                        return;
+                }
+
+                var chart = React.findDOMNode(this.refs.chart);
+
+                // do the data processing actions here ...
+                var margin = { top: 20, right: 20, bottom: 30, left: 50 },
+                    width = 960 - margin.left - margin.right,
+                    height = 500 - margin.top - margin.bottom;
+
+                var parseDate = d3.time.format("%d-%b-%y").parse;
+
+                var x = techan.scale.financetime().range([0, width]);
+
+                var y = d3.scale.linear().range([height, 0]);
+
+                var candlestick = techan.plot.candlestick().xScale(x).yScale(y);
+
+                var xAxis = d3.svg.axis().scale(x).orient("bottom");
+
+                var yAxis = d3.svg.axis().scale(y).orient("left");
+
+                var svg = d3.select(chart).append("svg").attr("width", width + margin.left + margin.right).attr("height", height + margin.top + margin.bottom).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+                var accessor = candlestick.accessor(),
+                    timestart = Date.now();
+
+                var data = input_data.map(function (d) {
+                        return {
+                                date: new Date(+d.date),
+                                open: +d.open,
+                                high: +d.high,
+                                low: +d.low,
+                                close: +d.close,
+                                volume: +d.volume
+                        };
+                }).sort(function (a, b) {
+                        return d3.ascending(accessor.d(a), accessor.d(b));
+                });
+
+                x.domain(data.map(accessor.d));
+                y.domain(techan.scale.plot.ohlc(data, accessor).domain());
+
+                svg.append("g").datum(data).attr("class", "candlestick").call(candlestick);
+
+                svg.append("g").attr("class", "x axis").attr("transform", "translate(0," + height + ")").call(xAxis);
+
+                svg.append("g").attr("class", "y axis").call(yAxis).append("text").attr("transform", "rotate(-90)").attr("y", 6).attr("dy", ".71em").style("text-anchor", "end").text("Price ($)");
+
+                console.log("Render time: " + (Date.now() - timestart));
+        },
+        componentWillReceiveProps: function componentWillReceiveProps(nextProps) {},
+        componentDidMount: function componentDidMount() {
+                this.renderChart(this.props.data);
+        },
+        shouldComponentUpdate: function shouldComponentUpdate(nextProps, nextState) {
+                this.renderChart(nextProps.data);
+                return false;
+        },
+        render: function render() {
+                return React.createElement(
+                        "div",
+                        null,
+                        React.createElement("div", { id: "chart", ref: "chart" }),
+                        React.createElement("input", { ref: "input" })
+                );
+        }
+});
+
+},{"../utils.js":161,"react":157}],160:[function(require,module,exports){
 "use strict";
 
 var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; })();
 
 var React = require("react");
 var utils = require("../utils.js");
+var ChartComponent = require("./chart.js");
 
 var parseDateString = function parseDateString(dateString) {
     if (typeof dateString === "object") {
@@ -29025,33 +29106,50 @@ module.exports = React.createClass({
     displayName: "exports",
 
     componentWillMount: function componentWillMount() {
+        var _this = this;
 
         var from = parseDateString(this.props.from || utils.date());
         var to = parseDateString(this.props.to || utils.date());
         var symbol = this.props.symbol || "AAPL";
 
+        console.log(from);
+        console.log(from.getMonth());
+        console.log(from.getFullYear());
+        console.log(to.getMonth());
+        console.log(to.getFullYear());
+
         utils.httpGet(encodeURI("/prices?" + utils.toQueryString({
             fromMonth: from.getMonth(),
-            fromYear: from.getYear(),
+            fromYear: from.getFullYear(),
             toMonth: to.getMonth(),
-            toYear: to.getYear(),
+            toYear: to.getFullYear(),
             symbol: symbol
         }))).then(function (res) {
             console.log(res);
+            _this.setState({
+                data: res.data,
+                flat_segments: res.flat
+            });
         })["catch"](function (a, b, c) {
             console.log("An error occured");
+            console.log(a, b, c);
         });
     },
+    getInitialState: function getInitialState() {
+        return {};
+    },
     render: function render() {
+        console.log("Rerender");
+        console.log(this.state);
         return React.createElement(
             "div",
             { className: "container" },
-            "Hello world"
+            React.createElement(ChartComponent, { data: this.state.data })
         );
     }
 });
 
-},{"../utils.js":160,"react":157}],160:[function(require,module,exports){
+},{"../utils.js":161,"./chart.js":159,"react":157}],161:[function(require,module,exports){
 "use strict";
 
 var jQuery = require("jQuery");
