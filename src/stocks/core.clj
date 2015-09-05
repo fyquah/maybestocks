@@ -6,12 +6,12 @@
             [incanter.stats]
             [stocks.charts :refer [candle-stick-plot]]
             [stocks.utils :refer [flat-seeker fat-partition]]
-            [clojure.core.matrix.stats :refer [mean] :as stats]
+            [clojure.core.matrix.stats :as stats]
             [clojure.set :refer [rename-keys]]
             [clj-time.coerce :refer [to-date]]))
 
 (defn fetch-data
-  ([ticker-symbol] (fetch-data ticker-symbol 100))
+  ([ticker-symbol] (fetch-data ticker-symbol 10000000))
   ([ticker-symbol lim]
   (->> (sql/select db/price (sql/limit lim) (sql/where {:symbol ticker-symbol}))
        (mapv #(rename-keys % {:open_p :open
@@ -36,7 +36,7 @@
          (map f))))
 
 (def window-rolling-sd (generate-window-fnc stats/sd))
-(def window-rolling-average (generate-window-fnc mean))
+(def window-rolling-average (generate-window-fnc stats/mean))
 
 (defn exp-rolling-average 
   "p is the rolling average percentage"
@@ -90,4 +90,63 @@
                                     (map first flat-seq)
                                     (map second flat-seq)))
                 chart flat-seqs))))))
+
+(def UP 1)
+(def DOWN 0)
+
+(defn get-decision [a b c]
+  (if (> a c) DOWN UP))
+
+(defn peek-x [x v]
+  (if (= 0 x)
+    []
+    (conj (peek-x (dec x) (pop v))
+          (peek v))))
+
+(defn remove-until
+  [f coll]
+  (if (or (empty? coll) (f (first coll)))
+    coll
+    (recur f (next coll))))
+
+(defn mean [v]
+  (if (empty? v)
+    0 (stats/mean v)))
+
+(defn accuracy [sym]
+  (let [data (fetch-data sym)]
+    (loop [timestamps (map :date data)
+           closing (->> data (map :close) (map double))
+           flat-seq (flat-seeker 0.15 timestamps closing)
+           res 0.0]
+      (cond (or (empty? flat-seq)
+              (empty? timestamps))
+            res
+            (not= (first timestamps)
+                  (-> flat-seq first first first))
+            (recur (next timestamps)
+                   (next closing)
+                   flat-seq
+                   res)
+            :else
+            (let [current-seq (first flat-seq)
+                  updated-timestamps (remove-until #(= % (-> flat-seq second
+                                                             first first))
+                                                timestamps)
+                  updated-closing (drop (- (count timestamps)
+                                           (count updated-timestamps))
+                                        closing)]
+              (recur updated-timestamps 
+                     updated-closing 
+                     (next flat-seq)
+                     (if (->> current-seq
+                              (mapv second)
+                              (peek-x 3)
+                              (apply get-decision)
+                              (= (if (< (mean (take-last 4 (map second
+                                                                      current-seq)))
+                                        (mean (take 3 updated-closing)))
+                                   UP DOWN)))
+                       (inc res)
+                       (dec res))))))))
 
