@@ -17,7 +17,7 @@
 
 (defn fat-partition
   [window-size step v]
-   (partition 
+   (partition
      window-size step
      (concat (repeat (dec window-size) (first v))
              v)))
@@ -37,7 +37,7 @@
   2. Check if price leaves a certain range, governed by the standard deviation.
   3. When a point tries to leave its 'containing box', it is given a tollerance of
   (ceiling/floor - rollingmean) * sensitivity
-  
+
   Should not be too hard to change this to a trend seeker (i.e, detect points which
   follow trends rather than floors / ceilings)"
   [sensitivity x-in v-in]
@@ -49,7 +49,7 @@
          rolling-mean (first v-in)
          res [[]]]
     (if (empty? v)
-      (do 
+      (do
         (filter #(>= (count %) 4) res))
       (let [head-diff (double (first diff-v))
             head (double (first v))
@@ -60,17 +60,17 @@
                (update-exp sensitivity abs-std head-diff)
                (update-exp sensitivity polar-std (abs head-diff))
                (update-exp 0.35 rolling-mean head)
-               (if (or 
-                     (and 
+               (if (or
+                     (and
                        (empty? current-seq)
                        (< (abs (/ (- head rolling-mean)
                                    rolling-mean))
                            abs-std)
                        (< (abs polar-std) sensitivity))
-                     (and 
+                     (and
                        ; for non empty current sequences
                        (not (empty? current-seq))
-                       ; Check if the downward slope has been confirmed by 
+                       ; Check if the downward slope has been confirmed by
                        ; two transactions
                        ; Skip test if the sequence has less than 5 items
                        (or (< (count current-seq) 3)
@@ -86,14 +86,14 @@
                                              (second (peek current-seq))]]
                              (not (every? #(> (abs (- m %)) (* 2 s))
                                          candidates))))
-                       ; check if it the latest change is trying to 
+                       ; check if it the latest change is trying to
                        ; leave the box, with a tolerance of sensitivity
                        (let [prices (map second current-seq)
                              floor (apply min (map second current-seq))
                              ceiling (apply max (map second current-seq))]
                          (or (and
                                (<= head ceiling)
-                               (>= head floor)) 
+                               (>= head floor))
                              (and
                                (> rolling-mean floor)
                                (< (- head ceiling)
@@ -107,4 +107,3 @@
                    res
                    ; Terminate, and start a new one if it is empty
                    (conj res []))))))))
-

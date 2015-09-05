@@ -10,19 +10,25 @@
             [clojure.set :refer [rename-keys]]
             [clj-time.coerce :refer [to-date]]))
 
+(defn parse-price-data [data]
+  (->> data
+      (mapv #(rename-keys % {:open_p :open
+                             :close_p :close
+                             :volume :volume
+                             :date_ex :date
+                             :high_p :high
+                             :low_p :low }))
+      (mapv #(assoc % :date (.getTime (:date %))))
+      (mapv #(select-keys % [:open :close :high
+                             :low :volume :date]))))
+
 (defn fetch-data
-  ([ticker-symbol] (fetch-data ticker-symbol 10000000))
-  ([ticker-symbol lim]
-  (->> (sql/select db/price (sql/limit lim) (sql/where {:symbol ticker-symbol}))
-       (mapv #(rename-keys % {:open_p :open
-                              :close_p :close
-                              :volume :volume
-                              :date_ex :date
-                              :high_p :high
-                              :low_p :low }))
-       (mapv #(assoc % :date (.getTime (:date %))))  
-       (mapv #(select-keys % [:open :close :high
-                              :low :volume :date])))))
+  ([ticker-symbol] (fetch-data ticker-symbol {}))
+  ([ticker-symbol where] (fetch-data ticker-symbol where 10000000))
+  ([ticker-symbol where-map lim]
+  (->> (sql/select db/price (sql/limit lim) (sql/where (merge {:symbol ticker-symbol}
+                                                              where-map)))
+       parse-price-data)))
 
 (def ^:const DJIA-list
   ["MMM" "AXP" "AAPL" "BA" "CAT" "CVX" "CSCO" "KO" "DIS" "DD"
@@ -38,7 +44,7 @@
 (def window-rolling-sd (generate-window-fnc stats/sd))
 (def window-rolling-average (generate-window-fnc stats/mean))
 
-(defn exp-rolling-average 
+(defn exp-rolling-average
   "p is the rolling average percentage"
   ([v] (exp-rolling-average 0.25 v))
   ([p v]
@@ -64,7 +70,7 @@
                                       :series-label ~label))
                  (partition 2 features)))))
 
-(defn draw-flat-histogram 
+(defn draw-flat-histogram
   ([sym] (draw-flat-histogram sym 100))
   ([sym lim]
   (let [data (fetch-data sym lim)
@@ -74,7 +80,7 @@
     (println "Total of " (count flat-seq))
     flat-seq)))
 
-(defn plot-candle-stick 
+(defn plot-candle-stick
   ([sym] (plot-candle-stick sym 100))
   ([sym lim]
   (let [data (fetch-data sym lim)
@@ -84,7 +90,7 @@
                                "0.25 exponential rolling average"
                                (exp-rolling-average 0.25 closing-prices))
           flat-seqs (flat-seeker 0.15 timestamps closing-prices)]
-      (incanter/view 
+      (incanter/view
         (reduce (fn [chart flat-seq]
                   (charts/add-lines chart
                                     (map first flat-seq)
@@ -136,8 +142,8 @@
                   updated-closing (drop (- (count timestamps)
                                            (count updated-timestamps))
                                         closing)]
-              (recur updated-timestamps 
-                     updated-closing 
+              (recur updated-timestamps
+                     updated-closing
                      (next flat-seq)
                      (if (->> current-seq
                               (mapv second)
@@ -149,4 +155,3 @@
                                    UP DOWN)))
                        (inc res)
                        (dec res))))))))
-

@@ -1,0 +1,29 @@
+{
+  "borwserify": {
+    "transform": [
+      [
+        "reactify",
+        {
+          "es6": true
+        }
+      ]
+    ]
+  },
+  "scripts": {
+    "build-js": "browserify resources/out/js/app.js -t babelify -o resources/public/js/app.js",
+    "build-min-js": "browserify resources/out/js/app.js -t babelify | uglifyjs -o resources/public/js/app.min.js",
+    "watch-js": "nodemon -e js -w resources/out/js -x 'npm run build-js'"
+  },
+  "devDependencies": {
+    "babelify": "^6.3.0",
+    "browserify": "^9.0.7",
+    "clean-css": "^3.1.9",
+    "node-sass": "^2.1.1",
+    "uglifyjs": "^2.4.10"
+  },
+  "dependencies": {
+    "jquery": "^2.1.4",
+    "react": "^0.13.3",
+    "reactify": "^1.1.1"
+  }
+}
