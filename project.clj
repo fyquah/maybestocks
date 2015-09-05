@@ -8,6 +8,7 @@
                  [mysql/mysql-connector-java "5.1.36"]
                  [org.clojure/clojure "1.7.0"]
                  [net.mikera/core.matrix "0.40.0"]
+                 [net.mikera/vectorz-clj "0.34.0"]
                  [net.mikera/core.matrix.stats "0.7.0"]
                  [incanter "1.5.6"]]
   :profiles {:dev
@@ -15,6 +16,7 @@
              :provided
              {:dependencies
                [[org.apache.spark/spark-core_2.10 "1.3.0"]
+                [org.apache.spark/spark-mllib_2.10 "1.4.1"]
                 [org.apache.spark/spark-streaming_2.10 "1.3.0"]
                 [org.apache.spark/spark-streaming-kafka_2.10 "1.3.0"]
                 [org.apache.spark/spark-streaming-flume_2.10 "1.3.0"]

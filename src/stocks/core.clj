@@ -4,13 +4,15 @@
             [incanter.charts :as charts]
             [incanter.core :as incanter]
             [stocks.charts :refer [candle-stick-plot]]
-            [stocks.utils :refer [flat-seeker]]
+            [stocks.utils :refer [flat-seeker fat-partition]]
             [clojure.core.matrix.stats :refer [mean] :as stats]
             [clojure.set :refer [rename-keys]]
             [clj-time.coerce :refer [to-date]]))
 
-(defn fetch-data [ticker-symbol]
-  (->> (sql/select db/price (sql/limit 100) (sql/where {:symbol ticker-symbol}))
+(defn fetch-data
+  ([ticker-symbol] (fetch-data ticker-symbol 100))
+  ([ticker-symbol lim]
+  (->> (sql/select db/price (sql/limit lim) (sql/where {:symbol ticker-symbol}))
        (mapv #(rename-keys % {:open_p :open
                               :close_p :close
                               :volume :volume
@@ -19,14 +21,7 @@
                               :low_p :low }))
        (mapv #(assoc % :date (.getTime (:date %))))  
        (mapv #(select-keys % [:open :close :high
-                              :low :volume :date]))))
-
-(defn fat-partition
-  [window-size step v]
-   (partition 
-     window-size step
-     (concat (repeat (dec window-size) (first v))
-             v)))
+                              :low :volume :date])))))
 
 (defn generate-window-fnc [f]
   (fn [v window-size]
@@ -72,26 +67,28 @@
                                       :series-label ~label))
                  (partition 2 features)))))
 
-(defn plot []
-  (let [data (fetch-data "A")
-        closing-prices (mapv :close data)
-        timestamps (mapv :date data)
-        mean-volume (mean (mapv :volume data))]
-    ; Candlestick
+(defn draw-flat-histogram []
+  (let [data (fetch-data "WBAI" 10000)
+        timestamps (->> data (map :date))
+        closing-prices (->> data (map :close) (map double))
+        flat-seq (flat-seeker 0.25 timestamps closing-prices)]
+    (println "Total of " (count flat-seq))
+    flat-seq))
 
-                       "Machine detected artifical floor / ceilings"
-                       (flat-seeker 0.25 timestamps closing-prices)     
+(defn plot-candle-stick []
+  (let [data (fetch-data "WBAI" 10000)
+        closing-prices (mapv :close data)
+        timestamps (mapv :date data)]
     (let [chart (plot-features data
                                "0.25 exponential rolling average"
                                (exp-rolling-average 0.25 closing-prices))
-          flat-seqs (flat-seeker 0.25 timestamps closing-prices)]
+          flat-seqs (flat-seeker 0.15 timestamps closing-prices)]
       (incanter/view 
         (reduce (fn [chart flat-seq]
                   (charts/add-lines chart
                                     (map first flat-seq)
                                     (map second flat-seq)))
                 chart flat-seqs)))))
-
 
 
 (comment "0.25 exponential rolling average"

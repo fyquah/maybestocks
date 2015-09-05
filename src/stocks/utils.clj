@@ -1,4 +1,6 @@
-(ns stocks.utils)
+(ns stocks.utils
+  (:require [clojure.core.matrix :as m]
+            [clojure.core.matrix.stats :as stats]))
 
 (defn abs [x]
   (if (< x 0) (- x) x))
@@ -12,6 +14,13 @@
   [p old-val new-val]
   (+ (* new-val p)
      (* (- 1 p) old-val)))
+
+(defn fat-partition
+  [window-size step v]
+   (partition 
+     window-size step
+     (concat (repeat (dec window-size) (first v))
+             v)))
 
 (defn peek-update
   [v f]
@@ -41,7 +50,7 @@
          res [[]]]
     (if (empty? v)
       (do 
-        (filter #(> (count %) 3) res))
+        (filter #(>= (count %) 3) res))
       (let [head-diff (double (first diff-v))
             head (double (first v))
             current-seq (peek res)]
@@ -50,7 +59,7 @@
                (next diff-v)
                (update-exp sensitivity abs-std head-diff)
                (update-exp sensitivity polar-std (abs head-diff))
-               (update-exp sensitivity rolling-mean head)
+               (update-exp 0.35 rolling-mean head)
                (if (or 
                      (and 
                        (empty? current-seq)
@@ -61,19 +70,38 @@
                      (and 
                        ; for non empty current sequences
                        (not (empty? current-seq))
-                       ; check if it is still in the current box
-                       (every? #(< (abs (/ (double (- (first v) %)) %))
-                                   (/ sensitivity 2))
-                               (map second current-seq)) 
+                       ; Check if the downward slope has been confirmed by 
+                       ; two transactions
+                       ; Skip test if the sequence has less than 5 items
+                       (or (< (count current-seq) 5)
+                           ; Check if the last two confirmation is implying
+                           ; somethig about a downwards breakthrough
+                           ; return false if a breakthrough is present
+                           ; return true otherwise
+                           (let [data (map #(double (second %))
+                                           (-> current-seq pop pop))
+                                 m (stats/mean data)
+                                 s (stats/sd data)
+                                 candidates [(second (peek (pop current-seq)))
+                                             (second (peek current-seq))]]
+                             (not (every? #(> (abs (- m %)) (* 2 s))
+                                         candidates))))
                        ; check if it the latest change is trying to 
                        ; leave the box, with a tolerance of sensitivity
                        (let [prices (map second current-seq)
                              floor (apply min (map second current-seq))
                              ceiling (apply max (map second current-seq))]
-                         (or (< (- head ceiling)
-                                 (* sensitivity (- ceiling rolling-mean)))
-                             (< (- floor head)
-                                 (* sensitivity (- rolling-mean floor)))))))
+                         (or (and
+                               (<= head ceiling)
+                               (>= head floor)) 
+                             (and
+                               (> rolling-mean floor)
+                               (< (- head ceiling)
+                                 (* sensitivity (- ceiling rolling-mean))))
+                             (and
+                               (< rolling-mean ceiling)
+                               (< (- floor head)
+                                 (* sensitivity (- rolling-mean floor))))))))
                  (peek-update res #(conj % [(first x) (first v)]))
                  (if (empty? (peek res))
                    res
