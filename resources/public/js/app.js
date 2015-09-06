@@ -29315,7 +29315,7 @@ module.exports = React.createClass({
         }
 });
 
-},{"../utils.js":162,"react":157}],160:[function(require,module,exports){
+},{"../utils.js":163,"react":157}],160:[function(require,module,exports){
 "use strict";
 
 var React = require("react");
@@ -29482,6 +29482,7 @@ var React = require("react");
 var utils = require("../utils.js");
 var ChartComponent = require("./chart.js");
 var CompanyInfoComponent = require("./company.js");
+var SimulationComponent = require("./simulation.js");
 
 var parseDateString = function parseDateString(dateString) {
     if (typeof dateString === "object") {
@@ -29564,6 +29565,12 @@ module.exports = React.createClass({
         React.findDOMNode(this.refs.from).value = formatDate(from);
         React.findDOMNode(this.refs.to).value = formatDate(to);
         React.findDOMNode(this.refs.symbol).value = this.props.symbol;
+
+        this.setState({
+            from: from,
+            to: to,
+            symbol: symbol
+        });
     },
     getInitialState: function getInitialState() {
         return {};
@@ -29581,8 +29588,9 @@ module.exports = React.createClass({
         if (from.value && to.value && symbol.value) {
             this.fetchAndUpdateData(new Date(from.value), new Date(to.value), symbol.value);
             this.setState({
-                from: from,
-                to: to
+                from: new Date(from.value),
+                to: new Date(to.value),
+                symbol: symbol.value.toUpperCase()
             });
         }
     },
@@ -29662,12 +29670,297 @@ module.exports = React.createClass({
                 ),
                 React.createElement("br", null),
                 React.createElement(CompanyInfoComponent, { company: this.state.company })
+            ),
+            React.createElement(
+                "div",
+                null,
+                React.createElement(SimulationComponent, { symbol: this.state.symbol,
+                    from: this.state.from,
+                    to: this.state.to })
             )
         );
     }
 });
 
-},{"../utils.js":162,"./chart.js":159,"./company.js":160,"react":157}],162:[function(require,module,exports){
+},{"../utils.js":163,"./chart.js":159,"./company.js":160,"./simulation.js":162,"react":157}],162:[function(require,module,exports){
+"use strict";
+
+var React = require("react");
+var utils = require("../utils.js");
+
+var formatDate = function formatDate(date) {
+    return date.getFullYear() + "-" + date.getMonth() + "-" + date.getDay();
+};
+
+var isDecisionCorrect = function isDecisionCorrect(o) {
+    return o.action === "BUY" && o.open_p <= o.close_p || o.action === "SELL" && o.open_p >= o.close_p;
+};
+
+var calculateProfit = function calculateProfit(open, close, action) {
+    if (action.toUpperCase() === "BUY") {
+        return close - open;
+    } else {
+        return open - close;
+    }
+};
+
+var daysDifference = function daysDifference(from, to) {
+    var seconds = (from.getTime() - to.getTime()) / 1000;
+    return Math.floor(Math.abs(seconds / 86400));
+};
+
+module.exports = React.createClass({
+    displayName: "exports",
+
+    fetchAndUpdate: function fetchAndUpdate(symbol) {
+        var _this = this;
+
+        var symbol = symbol || this.props.symbol;
+        if (typeof symbol === "undefined") {
+            return;
+        }
+
+        utils.httpGet("/simulation?symbol=" + symbol).then(function (res) {
+            console.log("Got results");
+            _this.setState({
+                simulations: res
+            });
+        })["catch"](function (e) {
+            console.error(e);
+        });
+    },
+    getInitialState: function getInitialState() {
+        return {};
+    },
+    componentDidMount: function componentDidMount() {
+        this.fetchAndUpdate();
+    },
+    componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
+        if (nextProps.symbol !== this.props.symbol) {
+            this.fetchAndUpdate(nextProps.symbol);
+        }
+    },
+    render: function render() {
+        if (this.state.simulations) {
+            var profit = this.state.simulations.reduce(function (m, o) {
+                return m + calculateProfit(+o.open_p, +o.close_p, o.action);
+            }, 0).toFixed(2);
+            var accuracy = this.state.simulations.reduce(function (m, o) {
+                return m + (isDecisionCorrect(o) ? 1 : 0);
+            }, 0) / this.state.simulations.length;
+            var number_of_days = daysDifference(this.props.from, this.props.to);
+
+            return React.createElement(
+                "div",
+                null,
+                React.createElement(
+                    "div",
+                    { className: "row" },
+                    React.createElement(
+                        "div",
+                        { className: "col-xs-6" },
+                        React.createElement(
+                            "h3",
+                            null,
+                            "Algorithm Summary"
+                        ),
+                        React.createElement("br", null),
+                        React.createElement(
+                            "table",
+                            { className: "table" },
+                            React.createElement(
+                                "tbody",
+                                null,
+                                React.createElement(
+                                    "tr",
+                                    null,
+                                    React.createElement(
+                                        "td",
+                                        null,
+                                        "Total profit"
+                                    ),
+                                    React.createElement(
+                                        "td",
+                                        null,
+                                        React.createElement(
+                                            "b",
+                                            null,
+                                            profit
+                                        )
+                                    )
+                                ),
+                                React.createElement(
+                                    "tr",
+                                    null,
+                                    React.createElement(
+                                        "td",
+                                        null,
+                                        "Accuracy"
+                                    ),
+                                    React.createElement(
+                                        "td",
+                                        null,
+                                        React.createElement(
+                                            "b",
+                                            null,
+                                            (accuracy * 100).toFixed(2),
+                                            "%"
+                                        )
+                                    )
+                                ),
+                                React.createElement(
+                                    "tr",
+                                    null,
+                                    React.createElement(
+                                        "td",
+                                        null,
+                                        "Number of transactions"
+                                    ),
+                                    React.createElement(
+                                        "td",
+                                        null,
+                                        React.createElement(
+                                            "b",
+                                            null,
+                                            this.state.simulations.length
+                                        )
+                                    )
+                                ),
+                                React.createElement(
+                                    "tr",
+                                    null,
+                                    React.createElement(
+                                        "td",
+                                        null,
+                                        "Number of Days"
+                                    ),
+                                    React.createElement(
+                                        "td",
+                                        null,
+                                        React.createElement(
+                                            "b",
+                                            null,
+                                            number_of_days
+                                        ),
+                                        " day(s)"
+                                    )
+                                ),
+                                React.createElement(
+                                    "tr",
+                                    null,
+                                    React.createElement(
+                                        "td",
+                                        null,
+                                        "Number of trades per day"
+                                    ),
+                                    React.createElement(
+                                        "td",
+                                        null,
+                                        React.createElement(
+                                            "b",
+                                            null,
+                                            (this.state.simulations.length / number_of_days).toFixed(2)
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    React.createElement("div", { className: "col-xs-6" })
+                ),
+                React.createElement(
+                    "h3",
+                    null,
+                    "Simulated Transactions"
+                ),
+                React.createElement(
+                    "table",
+                    { className: "table" },
+                    React.createElement(
+                        "thead",
+                        null,
+                        React.createElement(
+                            "thead",
+                            null,
+                            React.createElement(
+                                "tr",
+                                null,
+                                React.createElement(
+                                    "td",
+                                    null,
+                                    "Open Price"
+                                ),
+                                React.createElement(
+                                    "td",
+                                    null,
+                                    "Close Price"
+                                ),
+                                React.createElement(
+                                    "td",
+                                    null,
+                                    "Action"
+                                ),
+                                React.createElement(
+                                    "td",
+                                    null,
+                                    "Date"
+                                ),
+                                React.createElement(
+                                    "td",
+                                    null,
+                                    "Profit"
+                                )
+                            )
+                        )
+                    ),
+                    React.createElement(
+                        "tbody",
+                        null,
+                        this.state.simulations.map(function (o) {
+                            return React.createElement(
+                                "tr",
+                                null,
+                                React.createElement(
+                                    "td",
+                                    null,
+                                    o.open_p
+                                ),
+                                React.createElement(
+                                    "td",
+                                    null,
+                                    o.close_p
+                                ),
+                                React.createElement(
+                                    "td",
+                                    null,
+                                    o.action
+                                ),
+                                React.createElement(
+                                    "td",
+                                    null,
+                                    formatDate(new Date(o.date_ex))
+                                ),
+                                React.createElement(
+                                    "td",
+                                    null,
+                                    calculateProfit(+o.open_p, +o.close_p, o.action).toFixed(2)
+                                )
+                            );
+                        })
+                    )
+                )
+            );
+        } else {
+            return React.createElement(
+                "div",
+                null,
+                "Results not available. It might be loading"
+            );
+        }
+    }
+});
+
+},{"../utils.js":163,"react":157}],163:[function(require,module,exports){
 "use strict";
 
 var jQuery = require("jQuery");

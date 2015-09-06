@@ -2,6 +2,7 @@ const React = require("react");
 const utils = require("../utils.js");
 const ChartComponent = require("./chart.js");
 const CompanyInfoComponent = require("./company.js");
+const SimulationComponent = require("./simulation.js");
 
 const parseDateString = (dateString) =>  {
     if (typeof dateString === "object") {
@@ -73,6 +74,12 @@ module.exports = React.createClass({
         React.findDOMNode(this.refs.from).value = formatDate(from);
         React.findDOMNode(this.refs.to).value = formatDate(to);
         React.findDOMNode(this.refs.symbol).value = this.props.symbol;
+
+        this.setState({
+            from: from,
+            to: to,
+            symbol: symbol
+        })
     },
     getInitialState: function() {
         return {};
@@ -90,8 +97,9 @@ module.exports = React.createClass({
         if (from.value && to.value && symbol.value) {
             this.fetchAndUpdateData(new Date(from.value), new Date(to.value), symbol.value);
             this.setState({
-                from: from,
-                to: to
+                from: new Date(from.value),
+                to: new Date(to.value),
+                symbol: symbol.value.toUpperCase()
             })
         }
     },
@@ -140,6 +148,11 @@ module.exports = React.createClass({
                     </p>
                     <br />
                     <CompanyInfoComponent company={this.state.company} />
+                </div>
+                <div>
+                    <SimulationComponent symbol={this.state.symbol}
+                        from={this.state.from}
+                        to={this.state.to}/>
                 </div>
             </div>
         );
