@@ -29556,6 +29556,8 @@ module.exports = React.createClass({
         });
     },
     componentDidMount: function componentDidMount() {
+        var _this2 = this;
+
         var from = parseDateString(this.props.from || utils.date());
         var to = parseDateString(this.props.to || utils.date());
         var symbol = this.props.symbol || "AAPL";
@@ -29570,6 +29572,14 @@ module.exports = React.createClass({
             from: from,
             to: to,
             symbol: symbol
+        });
+
+        utils.httpGet("/companies").then(function (res) {
+            _this2.setState({
+                companies_list: res
+            });
+        })["catch"](function (e) {
+            console.error(e);
         });
     },
     getInitialState: function getInitialState() {
@@ -29595,7 +29605,7 @@ module.exports = React.createClass({
         }
     },
     render: function render() {
-        var _this2 = this;
+        var _this3 = this;
 
         return React.createElement(
             "div",
@@ -29609,14 +29619,14 @@ module.exports = React.createClass({
                 "div",
                 { className: "col-md-9" },
                 (function () {
-                    if (_this2.state.data && _this2.state.flats && _this2.state.company) {
+                    if (_this3.state.data && _this3.state.flats && _this3.state.company) {
                         return React.createElement(ChartComponent, {
                             ref: "chartComponent",
-                            from: _this2.state.from,
-                            to: _this2.state.to,
-                            data: _this2.state.data,
-                            flats: _this2.state.flats,
-                            company: _this2.state.company });
+                            from: _this3.state.from,
+                            to: _this3.state.to,
+                            data: _this3.state.data,
+                            flats: _this3.state.flats,
+                            company: _this3.state.company });
                     }
                 })()
             ),
@@ -29626,6 +29636,31 @@ module.exports = React.createClass({
                 React.createElement(
                     "p",
                     null,
+                    (function () {
+                        console.log(_this3.state);
+                        if (_this3.state.companies_list) {
+                            return React.createElement(
+                                "div",
+                                { className: "form-group" },
+                                React.createElement(
+                                    "select",
+                                    { className: "form-control" },
+                                    _this3.state.companies_list.map(function (o) {
+                                        return React.createElement(
+                                            "option",
+                                            null,
+                                            o.company,
+                                            " (",
+                                            o.symbol,
+                                            ")"
+                                        );
+                                    })
+                                )
+                            );
+                        } else {
+                            return React.createElement("div", null);
+                        }
+                    })(),
                     React.createElement(
                         "div",
                         { onBlur: this.handleSelectDate, className: "form-group" },

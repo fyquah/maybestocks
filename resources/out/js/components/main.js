@@ -80,6 +80,15 @@ module.exports = React.createClass({
             to: to,
             symbol: symbol
         })
+
+        utils.httpGet("/companies").
+        then((res) => {
+            this.setState({
+                companies_list: res
+            })
+        }).catch((e) => {
+            console.error(e);
+        })
     },
     getInitialState: function() {
         return {};
@@ -127,6 +136,21 @@ module.exports = React.createClass({
                 </div>
                 <div className="col-md-3">
                     <p>
+                        {(() => {
+                            console.log(this.state);
+                            if (this.state.companies_list) {
+                                return <div className="form-group">
+                                    <select className="form-control">
+                                        {this.state.companies_list.map(function(o){
+                                            return <option>{o.company} ({o.symbol})</option>
+                                        })}
+                                    </select>
+                                </div>
+
+                            } else {
+                                return <div></div>
+                            }
+                        })()}
                         <div onBlur={this.handleSelectDate} className="form-group">
                             <label>From</label>
                             <input className="form-control" type="date" name="from" ref="from" />

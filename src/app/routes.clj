@@ -47,9 +47,16 @@
                  (json/write-str))}
      "application/json")))
 
+(defn get-companies
+  ([m]
+   (response/content-type
+     {:body (json/write-str (sql/select :symbol))}
+     "application/json")))
+
 (defroutes app-routes
   (GET "/" [] "hello world")
   (GET "/prices" [] get-prices)
+  (GET "/companies" [] get-companies)
   (GET "/company" [] get-company)
   (GET "/simulation" [] get-simulation)
   (route/resources "/")
