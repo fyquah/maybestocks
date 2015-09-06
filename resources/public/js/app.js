@@ -28996,9 +28996,9 @@ var $ = jQuery;
 var React = require("react");
 var MainComponent = require("./components/main.js");
 
-React.render(React.createElement(MainComponent, { from: "09/2012" }), document.getElementById("app"));
+React.render(React.createElement(MainComponent, { from: "2012/09/01", to: "2015/09/03", symbol: "GOOGL" }), document.getElementById("app"));
 
-},{"./components/main.js":160,"jQuery":2,"react":157}],159:[function(require,module,exports){
+},{"./components/main.js":161,"jQuery":2,"react":157}],159:[function(require,module,exports){
 "use strict";
 
 var React = require("react");
@@ -29007,36 +29007,183 @@ var utils = require("../utils.js");
 module.exports = React.createClass({
         displayName: "exports",
 
-        renderChart: function renderChart(input_data) {
-                if (!input_data) {
+        renderChart: function renderChart(props) {
+                var data = props.data;
+                var flats = props.flats;
+                var company = props.company;
+
+                if (!data) {
                         return;
                 }
 
                 var chart = React.findDOMNode(this.refs.chart);
+                // remove all its children
+                d3.select(chart).select("svg").remove();
 
-                // do the data processing actions here ...
-                var margin = { top: 20, right: 20, bottom: 30, left: 50 },
-                    width = 960 - margin.left - margin.right,
-                    height = 500 - margin.top - margin.bottom;
+                var dim = {
+                        width: chart.parentNode.offsetWidth, height: 500,
+                        margin: { top: 20, right: 50, bottom: 30, left: 50 },
+                        ohlc: { height: 305 },
+                        indicator: { height: 65, padding: 5 }
+                };
+                dim.plot = {
+                        width: dim.width - dim.margin.left - dim.margin.right,
+                        height: dim.height - dim.margin.top - dim.margin.bottom
+                };
+                dim.indicator.top = dim.ohlc.height + dim.indicator.padding;
+                dim.indicator.bottom = dim.indicator.top + dim.indicator.height + dim.indicator.padding;
+
+                var indicatorTop = d3.scale.linear().range([dim.indicator.top, dim.indicator.bottom]);
 
                 var parseDate = d3.time.format("%d-%b-%y").parse;
 
-                var x = techan.scale.financetime().range([0, width]);
+                var zoom = d3.behavior.zoom().on("zoom", draw);
 
-                var y = d3.scale.linear().range([height, 0]);
+                var zoomPercent = d3.behavior.zoom();
+
+                var x = techan.scale.financetime().range([0, dim.plot.width]);
+
+                var y = d3.scale.linear().range([dim.ohlc.height, 0]);
+
+                var yPercent = y.copy(); // Same as y at this stage, will get a different domain later
+
+                var yVolume = d3.scale.linear().range([y(0), y(0.2)]);
 
                 var candlestick = techan.plot.candlestick().xScale(x).yScale(y);
 
+                var sma1 = techan.plot.sma().xScale(x).yScale(y);
+
+                var ema2 = techan.plot.ema().xScale(x).yScale(y);
+
+                var flatLines = flats.map(function () {
+                        return techan.plot.ema().xScale(x).yScale(y);
+                });
+
+                var volume = techan.plot.volume().accessor(candlestick.accessor()) // Set the accessor to a ohlc accessor so we get highlighted bars
+                .xScale(x).yScale(yVolume);
+
+                var trendline = techan.plot.trendline().xScale(x).yScale(y);
+
+                var supstance = techan.plot.supstance().xScale(x).yScale(y);
+
                 var xAxis = d3.svg.axis().scale(x).orient("bottom");
 
-                var yAxis = d3.svg.axis().scale(y).orient("left");
+                var timeAnnotation = techan.plot.axisannotation().axis(xAxis).format(d3.time.format('%Y-%m-%d')).width(65).translate([0, dim.plot.height]);
 
-                var svg = d3.select(chart).append("svg").attr("width", width + margin.left + margin.right).attr("height", height + margin.top + margin.bottom).append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+                var yAxis = d3.svg.axis().scale(y).orient("right");
+
+                var ohlcAnnotation = techan.plot.axisannotation().axis(yAxis).format(d3.format(',.2fs')).translate([x(1), 0]);
+
+                var closeAnnotation = techan.plot.axisannotation().axis(yAxis).accessor(candlestick.accessor()).format(d3.format(',.2fs')).translate([x(1), 0]);
+
+                var percentAxis = d3.svg.axis().scale(yPercent).orient("left").tickFormat(d3.format('+.1%'));
+
+                var percentAnnotation = techan.plot.axisannotation().axis(percentAxis);
+
+                var volumeAxis = d3.svg.axis().scale(yVolume).orient("right").ticks(3).tickFormat(d3.format(",.3s"));
+
+                var volumeAnnotation = techan.plot.axisannotation().axis(volumeAxis).width(35);
+
+                var macdScale = d3.scale.linear().range([indicatorTop(0) + dim.indicator.height, indicatorTop(0)]);
+
+                var rsiScale = macdScale.copy().range([indicatorTop(1) + dim.indicator.height, indicatorTop(1)]);
+
+                var macd = techan.plot.macd().xScale(x).yScale(macdScale);
+
+                var macdAxis = d3.svg.axis().scale(macdScale).ticks(3).orient("right");
+
+                var macdAnnotation = techan.plot.axisannotation().axis(macdAxis).format(d3.format(',.2fs')).translate([x(1), 0]);
+
+                var macdAxisLeft = d3.svg.axis().scale(macdScale).ticks(3).orient("left");
+
+                var macdAnnotationLeft = techan.plot.axisannotation().axis(macdAxisLeft).format(d3.format(',.2fs'));
+
+                var rsi = techan.plot.rsi().xScale(x).yScale(rsiScale);
+
+                var rsiAxis = d3.svg.axis().scale(rsiScale).ticks(3).orient("right");
+
+                var rsiAnnotation = techan.plot.axisannotation().axis(rsiAxis).format(d3.format(',.2fs')).translate([x(1), 0]);
+
+                var rsiAxisLeft = d3.svg.axis().scale(rsiScale).ticks(3).orient("left");
+
+                var rsiAnnotationLeft = techan.plot.axisannotation().axis(rsiAxisLeft).format(d3.format(',.2fs'));
+
+                var ohlcCrosshair = techan.plot.crosshair().xScale(timeAnnotation.axis().scale()).yScale(ohlcAnnotation.axis().scale()).xAnnotation(timeAnnotation).yAnnotation([ohlcAnnotation, percentAnnotation, volumeAnnotation]).verticalWireRange([0, dim.plot.height]);
+
+                var macdCrosshair = techan.plot.crosshair().xScale(timeAnnotation.axis().scale()).yScale(macdAnnotation.axis().scale()).xAnnotation(timeAnnotation).yAnnotation([macdAnnotation, macdAnnotationLeft]).verticalWireRange([0, dim.plot.height]);
+
+                var rsiCrosshair = techan.plot.crosshair().xScale(timeAnnotation.axis().scale()).yScale(rsiAnnotation.axis().scale()).xAnnotation(timeAnnotation).yAnnotation([rsiAnnotation, rsiAnnotationLeft]).verticalWireRange([0, dim.plot.height]);
+
+                var svg = d3.select(chart).append("svg").attr("width", dim.width).attr("height", dim.height);
+
+                var defs = svg.append("defs");
+
+                defs.append("clipPath").attr("id", "ohlcClip").append("rect").attr("x", 0).attr("y", 0).attr("width", dim.plot.width).attr("height", dim.ohlc.height);
+
+                defs.selectAll("indicatorClip").data([0, 1]).enter().append("clipPath").attr("id", function (d, i) {
+                        return "indicatorClip-" + i;
+                }).append("rect").attr("x", 0).attr("y", function (d, i) {
+                        return indicatorTop(i);
+                }).attr("width", dim.plot.width).attr("height", dim.indicator.height);
+
+                svg = svg.append("g").attr("transform", "translate(" + dim.margin.left + "," + dim.margin.top + ")");
+
+                svg.append('text').attr("class", "symbol").attr("x", 20).text(company.company);
+
+                svg.append("g").attr("class", "x axis").attr("transform", "translate(0," + dim.plot.height + ")");
+
+                var ohlcSelection = svg.append("g").attr("class", "ohlc").attr("transform", "translate(0,0)");
+
+                ohlcSelection.append("g").attr("class", "axis").attr("transform", "translate(" + x(1) + ",0)").append("text").attr("transform", "rotate(-90)").attr("y", -12).attr("dy", ".71em").style("text-anchor", "end").text("Price ($)");
+
+                ohlcSelection.append("g").attr("class", "close annotation up");
+
+                ohlcSelection.append("g").attr("class", "volume").attr("clip-path", "url(#ohlcClip)");
+
+                ohlcSelection.append("g").attr("class", "candlestick").attr("clip-path", "url(#ohlcClip)");
+
+                flats.forEach(function (o, idx) {
+                        ohlcSelection.append("g").attr("class", "indicator sma flat-line line-" + idx).attr("clip-path", "url(#ohlcClip)");
+                });
+
+                ohlcSelection.append("g").attr("class", "indicator sma ma-0").attr("clip-path", "url(#ohlcClip)");
+
+                ohlcSelection.append("g").attr("class", "indicator sma ma-1").attr("clip-path", "url(#ohlcClip)");
+
+                ohlcSelection.append("g").attr("class", "indicator ema ma-2").attr("clip-path", "url(#ohlcClip)");
+
+                ohlcSelection.append("g").attr("class", "percent axis");
+
+                ohlcSelection.append("g").attr("class", "volume axis");
+
+                var indicatorSelection = svg.selectAll("svg > g.indicator").data(["macd", "rsi"]).enter().append("g").attr("class", function (d) {
+                        return d + " indicator";
+                });
+
+                indicatorSelection.append("g").attr("class", "axis right").attr("transform", "translate(" + x(1) + ",0)");
+
+                indicatorSelection.append("g").attr("class", "axis left").attr("transform", "translate(" + x(0) + ",0)");
+
+                indicatorSelection.append("g").attr("class", "indicator-plot").attr("clip-path", function (d, i) {
+                        return "url(#indicatorClip-" + i + ")";
+                });
+
+                // Add trendlines and other interactions last to be above zoom pane
+                svg.append('g').attr("class", "crosshair ohlc");
+
+                svg.append('g').attr("class", "crosshair macd");
+
+                svg.append('g').attr("class", "crosshair rsi");
+
+                svg.append("g").attr("class", "trendlines analysis").attr("clip-path", "url(#ohlcClip)");
+                svg.append("g").attr("class", "supstances analysis").attr("clip-path", "url(#ohlcClip)");
+
+                this.reset = reset;
 
                 var accessor = candlestick.accessor(),
-                    timestart = Date.now();
+                    indicatorPreRoll = 33; // Don't show where indicators don't have data
 
-                var data = input_data.map(function (d) {
+                var data = data.map(function (d) {
                         return {
                                 date: new Date(+d.date),
                                 open: +d.open,
@@ -29049,36 +29196,284 @@ module.exports = React.createClass({
                         return d3.ascending(accessor.d(a), accessor.d(b));
                 });
 
-                x.domain(data.map(accessor.d));
-                y.domain(techan.scale.plot.ohlc(data, accessor).domain());
+                x.domain(techan.scale.plot.time(data).domain());
+                y.domain(techan.scale.plot.ohlc(data.slice(indicatorPreRoll)).domain());
+                yPercent.domain(techan.scale.plot.percent(y, accessor(data[indicatorPreRoll])).domain());
+                yVolume.domain(techan.scale.plot.volume(data).domain());
 
-                svg.append("g").datum(data).attr("class", "candlestick").call(candlestick);
+                var trendlineData = [{ start: { date: this.props.from, value: 72.50 }, end: { date: this.props.to, value: 63.34 } }, { start: { date: this.props.from, value: 43 }, end: { date: this.props.to, value: 70.50 } }];
 
-                svg.append("g").attr("class", "x axis").attr("transform", "translate(0," + height + ")").call(xAxis);
+                var supstanceData = [{ start: this.props.from, end: this.props.to, value: 63.64 }, { start: this.props.from, end: this.props.to, value: 55.50 }];
 
-                svg.append("g").attr("class", "y axis").call(yAxis).append("text").attr("transform", "rotate(-90)").attr("y", 6).attr("dy", ".71em").style("text-anchor", "end").text("Price ($)");
+                var macdData = techan.indicator.macd()(data);
+                macdScale.domain(techan.scale.plot.macd(macdData).domain());
+                var rsiData = techan.indicator.rsi()(data);
+                rsiScale.domain(techan.scale.plot.rsi(rsiData).domain());
 
-                console.log("Render time: " + (Date.now() - timestart));
+                svg.select("g.candlestick").datum(data).call(candlestick);
+                svg.select("g.close.annotation").datum([data[data.length - 1]]).call(closeAnnotation);
+                svg.select("g.volume").datum(data).call(volume);
+                svg.select("g.macd .indicator-plot").datum(macdData).call(macd);
+                svg.select("g.rsi .indicator-plot").datum(rsiData).call(rsi);
+
+                flats.forEach(function (o, idx) {
+                        ohlcSelection.append("g").attr("class", "indicator sma line-" + idx).attr("clip-path", "url(#ohlcClip)");
+                });
+
+                flats.forEach(function (flat, idx) {
+                        svg.select("g.sma.line-" + idx).datum(flat.map(function (o) {
+                                return {
+                                        date: o.date,
+                                        value: o.close
+                                };
+                        })).call(flatLines[idx]);
+                });
+
+                // svg.select("g.sma.ma-0").datum(data.map(function(o){
+                //     return {
+                //         "date":     o.date,
+                //         "value":    o.close
+                //     };
+                // })).call(sma0);
+                // Indicator lines (SMA and EMA)
+                // svg.select("g.sma.ma-0").datum(techan.indicator.sma().period(10)(data)).call(sma0);
+                // svg.select("g.sma.ma-1").datum(techan.indicator.sma().period(20)(data)).call(sma1);
+                // svg.select("g.ema.ma-2").datum(techan.indicator.ema().period(50)(data)).call(ema2);
+
+                svg.select("g.crosshair.ohlc").call(ohlcCrosshair).call(zoom);
+                svg.select("g.crosshair.macd").call(macdCrosshair).call(zoom);
+                svg.select("g.crosshair.rsi").call(rsiCrosshair).call(zoom);
+                svg.select("g.trendlines").datum(trendlineData).call(trendline).call(trendline.drag);
+                svg.select("g.supstances").datum(supstanceData).call(supstance).call(supstance.drag);
+
+                var zoomable = x.zoomable();
+                zoomable.domain([indicatorPreRoll, data.length]); // Zoom in a little to hide indicator preroll
+
+                draw();
+
+                // Associate the zoom with the scale after a domain has been applied
+                zoom.x(zoomable).y(y);
+                zoomPercent.y(yPercent);
+
+                function reset() {
+                        zoom.scale(1);
+                        zoom.translate([0, 0]);
+                        draw();
+                }
+
+                function draw() {
+                        zoomPercent.translate(zoom.translate());
+                        zoomPercent.scale(zoom.scale());
+
+                        svg.select("g.x.axis").call(xAxis);
+                        svg.select("g.ohlc .axis").call(yAxis);
+                        svg.select("g.volume.axis").call(volumeAxis);
+                        svg.select("g.percent.axis").call(percentAxis);
+                        svg.select("g.macd .axis.right").call(macdAxis);
+                        svg.select("g.rsi .axis.right").call(rsiAxis);
+                        svg.select("g.macd .axis.left").call(macdAxisLeft);
+                        svg.select("g.rsi .axis.left").call(rsiAxisLeft);
+
+                        // We know the data does not change, a simple refresh that does not perform data joins will suffice.
+                        svg.select("g.candlestick").call(candlestick.refresh);
+                        svg.select("g.close.annotation").call(closeAnnotation.refresh);
+                        svg.select("g.volume").call(volume.refresh);
+
+                        // Flat lines
+                        flats.forEach(function (o, idx) {
+                                svg.select("g .sma.flat-line.line-" + idx).call(flatLines[idx].refresh);
+                        });
+
+                        // SMA and EMA lines
+                        // svg.select("g .sma.ma-0").call(sma0.refresh);
+                        // svg.select("g .sma.ma-1").call(sma1.refresh);
+                        // svg.select("g .ema.ma-2").call(ema2.refresh);
+
+                        svg.select("g.macd .indicator-plot").call(macd.refresh);
+                        svg.select("g.rsi .indicator-plot").call(rsi.refresh);
+                        svg.select("g.crosshair.ohlc").call(ohlcCrosshair.refresh);
+                        svg.select("g.crosshair.macd").call(macdCrosshair.refresh);
+                        svg.select("g.crosshair.rsi").call(rsiCrosshair.refresh);
+                        svg.select("g.trendlines").call(trendline.refresh);
+                        svg.select("g.supstances").call(supstance.refresh);
+                }
         },
-        componentWillReceiveProps: function componentWillReceiveProps(nextProps) {},
         componentDidMount: function componentDidMount() {
-                this.renderChart(this.props.data);
+                this.renderChart(this.props);
         },
         shouldComponentUpdate: function shouldComponentUpdate(nextProps, nextState) {
-                this.renderChart(nextProps.data);
+                console.log("rerender");
+                this.renderChart(nextProps);
                 return false;
         },
         render: function render() {
                 return React.createElement(
                         "div",
                         null,
-                        React.createElement("div", { id: "chart", ref: "chart" }),
-                        React.createElement("input", { ref: "input" })
+                        React.createElement("div", { id: "chart", ref: "chart" })
                 );
         }
 });
 
-},{"../utils.js":161,"react":157}],160:[function(require,module,exports){
+},{"../utils.js":162,"react":157}],160:[function(require,module,exports){
+"use strict";
+
+var React = require("react");
+
+// Company info!
+module.exports = React.createClass({
+    displayName: "exports",
+
+    render: function render() {
+        var company = this.props.company;
+        console.log(company);
+        if (company) {
+            return React.createElement(
+                "div",
+                null,
+                React.createElement(
+                    "table",
+                    { className: "table" },
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "th",
+                            null,
+                            "Column"
+                        ),
+                        React.createElement(
+                            "th",
+                            null,
+                            "Detail"
+                        )
+                    ),
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "td",
+                            null,
+                            "Symbol"
+                        ),
+                        React.createElement(
+                            "td",
+                            null,
+                            React.createElement(
+                                "b",
+                                null,
+                                company.symbol
+                            )
+                        )
+                    ),
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "td",
+                            null,
+                            "Name"
+                        ),
+                        React.createElement(
+                            "td",
+                            null,
+                            React.createElement(
+                                "b",
+                                null,
+                                company.company
+                            )
+                        )
+                    ),
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "td",
+                            null,
+                            "Market Cap"
+                        ),
+                        React.createElement(
+                            "td",
+                            null,
+                            React.createElement(
+                                "b",
+                                null,
+                                company.marketcap
+                            )
+                        )
+                    ),
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "td",
+                            null,
+                            "IPO Year"
+                        ),
+                        React.createElement(
+                            "td",
+                            null,
+                            React.createElement(
+                                "b",
+                                null,
+                                company.ipoyear || "N/A"
+                            )
+                        )
+                    ),
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "td",
+                            null,
+                            "Industry"
+                        ),
+                        React.createElement(
+                            "td",
+                            null,
+                            React.createElement(
+                                "b",
+                                null,
+                                company.sector
+                            )
+                        )
+                    ),
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "td",
+                            null,
+                            "Quote Link"
+                        ),
+                        React.createElement(
+                            "td",
+                            null,
+                            React.createElement(
+                                "a",
+                                { target: "_blank",
+                                    href: company.quotelink },
+                                React.createElement(
+                                    "b",
+                                    null,
+                                    "View"
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+        } else {
+            return React.createElement(
+                "div",
+                null,
+                "No company selected yet."
+            );
+        }
+    }
+});
+
+},{"react":157}],161:[function(require,module,exports){
 "use strict";
 
 var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; })();
@@ -29086,6 +29481,7 @@ var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = 
 var React = require("react");
 var utils = require("../utils.js");
 var ChartComponent = require("./chart.js");
+var CompanyInfoComponent = require("./company.js");
 
 var parseDateString = function parseDateString(dateString) {
     if (typeof dateString === "object") {
@@ -29093,31 +29489,37 @@ var parseDateString = function parseDateString(dateString) {
     } else {
             var _dateString$split$map = dateString.split("/").map(Number);
 
-            var _dateString$split$map2 = _slicedToArray(_dateString$split$map, 2);
+            var _dateString$split$map2 = _slicedToArray(_dateString$split$map, 3);
 
-            var month = _dateString$split$map2[0];
-            var year = _dateString$split$map2[1];
+            var year = _dateString$split$map2[0];
+            var month = _dateString$split$map2[1];
+            var day = _dateString$split$map2[2];
 
-            return new Date(year, month);
+            return new Date(year, month, day);
         }
+};
+var formatDate = function formatDate(date) {
+    var pad = function pad(n) {
+        if (n < 10) {
+            return "0" + n.toString();
+        } else {
+            return n.toString();
+        }
+    };
+    console.log(date);
+    var x = date.getFullYear() + "-" + pad(date.getMonth()) + "-" + pad(date.getDay());
+    return x;
 };
 
 module.exports = React.createClass({
     displayName: "exports",
 
-    componentWillMount: function componentWillMount() {
+    fetchAndUpdateData: function fetchAndUpdateData(from, to, symbol) {
         var _this = this;
 
-        var from = parseDateString(this.props.from || utils.date());
-        var to = parseDateString(this.props.to || utils.date());
-        var symbol = this.props.symbol || "AAPL";
-
-        console.log(from);
-        console.log(from.getMonth());
-        console.log(from.getFullYear());
-        console.log(to.getMonth());
-        console.log(to.getFullYear());
-
+        // from and to are Date objects
+        // symbol is the ticker symbol of the relevant company
+        // update price
         utils.httpGet(encodeURI("/prices?" + utils.toQueryString({
             fromMonth: from.getMonth(),
             fromYear: from.getFullYear(),
@@ -29125,31 +29527,147 @@ module.exports = React.createClass({
             toYear: to.getFullYear(),
             symbol: symbol
         }))).then(function (res) {
-            console.log(res);
             _this.setState({
-                data: res.data,
-                flat_segments: res.flat
+                data: res.data.concat([]),
+                flats: res.flat.map(function (seq) {
+                    return seq.map(function (entry) {
+                        var _entry = _slicedToArray(entry, 2);
+
+                        var date = _entry[0];
+                        var close = _entry[1];
+
+                        return { close: close, date: date };
+                    });
+                })
             });
         })["catch"](function (a, b, c) {
             console.log("An error occured");
             console.log(a, b, c);
         });
+
+        // update symbol
+        utils.httpGet("/company?symbol=" + symbol).then(function (res) {
+            _this.setState({
+                company: res
+            });
+        })["catch"](function (e) {
+            console.log(e);
+        });
+    },
+    componentDidMount: function componentDidMount() {
+        var from = parseDateString(this.props.from || utils.date());
+        var to = parseDateString(this.props.to || utils.date());
+        var symbol = this.props.symbol || "AAPL";
+
+        this.fetchAndUpdateData(from, to, symbol);
+
+        React.findDOMNode(this.refs.from).value = formatDate(from);
+        React.findDOMNode(this.refs.to).value = formatDate(to);
+        React.findDOMNode(this.refs.symbol).value = this.props.symbol;
     },
     getInitialState: function getInitialState() {
         return {};
     },
+    handleClickReset: function handleClickReset(e) {
+        e.preventDefault();
+        this.refs.chartComponent.reset();
+    },
+    handleSelectDate: function handleSelectDate(e) {
+        e.preventDefault();
+        var from = React.findDOMNode(this.refs.from);
+        var to = React.findDOMNode(this.refs.to);
+        var symbol = React.findDOMNode(this.refs.symbol);
+
+        if (from.value && to.value && symbol.value) {
+            this.fetchAndUpdateData(new Date(from.value), new Date(to.value), symbol.value);
+            this.setState({
+                from: from,
+                to: to
+            });
+        }
+    },
     render: function render() {
-        console.log("Rerender");
-        console.log(this.state);
+        var _this2 = this;
+
         return React.createElement(
             "div",
             { className: "container" },
-            React.createElement(ChartComponent, { data: this.state.data })
+            React.createElement(
+                "h1",
+                null,
+                "Maybe Stocks"
+            ),
+            React.createElement(
+                "div",
+                { className: "col-md-9" },
+                (function () {
+                    if (_this2.state.data && _this2.state.flats && _this2.state.company) {
+                        return React.createElement(ChartComponent, {
+                            ref: "chartComponent",
+                            from: _this2.state.from,
+                            to: _this2.state.to,
+                            data: _this2.state.data,
+                            flats: _this2.state.flats,
+                            company: _this2.state.company });
+                    }
+                })()
+            ),
+            React.createElement(
+                "div",
+                { className: "col-md-3" },
+                React.createElement(
+                    "p",
+                    null,
+                    React.createElement(
+                        "div",
+                        { onBlur: this.handleSelectDate, className: "form-group" },
+                        React.createElement(
+                            "label",
+                            null,
+                            "From"
+                        ),
+                        React.createElement("input", { className: "form-control", type: "date", name: "from", ref: "from" })
+                    ),
+                    React.createElement(
+                        "div",
+                        { onBlur: this.handleSelectDate, className: "form-group" },
+                        React.createElement(
+                            "label",
+                            null,
+                            "To"
+                        ),
+                        React.createElement("input", { className: "form-control", type: "date", name: "to", ref: "to" })
+                    ),
+                    React.createElement(
+                        "div",
+                        { onBlur: this.handleSelectDate, className: "form-group" },
+                        React.createElement(
+                            "label",
+                            null,
+                            "Company"
+                        ),
+                        React.createElement("input", { className: "form-control", type: "text", name: "symbol", ref: "symbol", placeholder: "Company Symbol" })
+                    ),
+                    React.createElement(
+                        "button",
+                        { onClick: this.handleSelectDate, className: "btn btn-primary", ref: "button" },
+                        "Update Data"
+                    ),
+                    " ",
+                    React.createElement(
+                        "button",
+                        { onClick: this.handleClickReset, className: "btn btn-warning", ref: "button" },
+                        "Zoom Out"
+                    )
+                ),
+                React.createElement("br", null),
+                React.createElement(CompanyInfoComponent, { company: this.state.company })
+            )
         );
     }
 });
 
-},{"../utils.js":161,"./chart.js":159,"react":157}],161:[function(require,module,exports){
+},{"../utils.js":162,"./chart.js":159,"./company.js":160,"react":157}],162:[function(require,module,exports){
 "use strict";
 
 var jQuery = require("jQuery");

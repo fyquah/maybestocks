@@ -30,9 +30,18 @@
                               :flat flat-seq})})
      "application/json")))
 
+(defn get-company
+  ([{{sym :symbol} :params}]
+   (response/content-type
+    {:body (-> (sql/select :symbol (sql/where (= :symbol sym)))
+               first
+               json/write-str)}
+    "application/json")))
+
 (defroutes app-routes
   (GET "/" [] "hello world")
   (GET "/prices" [] get-prices)
+  (GET "/company" [] get-company)
   (route/resources "/")
   (route/not-found "Not found"))
 
