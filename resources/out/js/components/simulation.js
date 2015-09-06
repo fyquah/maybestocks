@@ -1,10 +1,6 @@
 const React = require("react");
 const utils = require("../utils.js");
 
-const formatDate = function(date) {
-    return `${date.getFullYear()}-${date.getMonth()}-${date.getDay()}`
-}
-
 const isDecisionCorrect = function(o) {
     return (o.action === "BUY" && o.open_p <= o.close_p) ||
         (o.action === "SELL" && o.open_p >= o.close_p)
@@ -115,7 +111,7 @@ module.exports = React.createClass({
                                         <td>{o.open_p}</td>
                                         <td>{o.close_p}</td>
                                         <td>{o.action}</td>
-                                        <td>{formatDate(new Date(o.date_ex))}</td>
+                                        <td>{utils.formatDate(new Date(o.date_ex))}</td>
                                         <td>{calculateProfit(+o.open_p, +o.close_p, o.action).toFixed(2)}</td>
                                     </tr>
                                 )

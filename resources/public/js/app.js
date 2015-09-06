@@ -29688,10 +29688,6 @@ module.exports = React.createClass({
 var React = require("react");
 var utils = require("../utils.js");
 
-var formatDate = function formatDate(date) {
-    return date.getFullYear() + "-" + date.getMonth() + "-" + date.getDay();
-};
-
 var isDecisionCorrect = function isDecisionCorrect(o) {
     return o.action === "BUY" && o.open_p <= o.close_p || o.action === "SELL" && o.open_p >= o.close_p;
 };
@@ -29938,7 +29934,7 @@ module.exports = React.createClass({
                                 React.createElement(
                                     "td",
                                     null,
-                                    formatDate(new Date(o.date_ex))
+                                    utils.formatDate(new Date(o.date_ex))
                                 ),
                                 React.createElement(
                                     "td",
@@ -30011,7 +30007,10 @@ var toQueryString = function toQueryString(obj) {
 
     return arr.join("&");
 };
+var formatDate = function formatDate(date) {
+    return date.getFullYear() + "-" + date.getMonth() + "-" + date.getDay();
+};
 
-module.exports = { httpGet: httpGet, date: date, toQueryString: toQueryString };
+module.exports = { httpGet: httpGet, date: date, toQueryString: toQueryString, formatDate: formatDate };
 
 },{"jQuery":2}]},{},[158]);

@@ -23,5 +23,8 @@ const toQueryString = (obj) => {
 
     return arr.join("&");
 }
+const formatDate = function(date) {
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDay()}`
+}
 
-module.exports = { httpGet, date, toQueryString };
+module.exports = { httpGet, date, toQueryString, formatDate };
