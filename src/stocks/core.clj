@@ -23,11 +23,9 @@
                              :low :volume :date]))))
 
 (defn fetch-data
-  ([ticker-symbol] (fetch-data ticker-symbol {}))
-  ([ticker-symbol where] (fetch-data ticker-symbol where 10000000))
-  ([ticker-symbol where-map lim]
-  (->> (sql/select db/price (sql/limit lim) (sql/where (merge {:symbol ticker-symbol}
-                                                              where-map)))
+  ([ticker-symbol] (fetch-data ticker-symbol 10000))
+  ([ticker-symbol lim]
+  (->> (sql/select db/price (sql/limit lim) (sql/where (merge {:symbol ticker-symbol})))
        parse-price-data)))
 
 (def ^:const DJIA-list
@@ -118,6 +116,53 @@
 (defn mean [v]
   (if (empty? v)
     0 (stats/mean v)))
+
+(defn simulate
+  [data]
+  (->> (loop [timestamps (map :date data)
+             closing (->> data (map :close) (map double))
+             flat-seq (flat-seeker 0.15 timestamps closing)
+             res []]
+        (cond (or (empty? flat-seq)
+                (empty? timestamps))
+              res
+              (not= (first timestamps)
+                    (-> flat-seq first first first))
+              (recur (next timestamps)
+                     (next closing)
+                     flat-seq
+                     res)
+              :else
+              (let [current-seq (first flat-seq)
+                    updated-timestamps (remove-until #(= % (-> flat-seq second
+                                                               first first))
+                                                     timestamps)
+                    updated-closing (drop (- (count timestamps)
+                                             (count updated-timestamps))
+                                          closing)]
+                (recur updated-timestamps
+                       updated-closing
+                       (next flat-seq)
+                       (let [last-3-of-seq (->> current-seq (mapv second) (peek-x 3))
+                             decision (if (= UP (apply get-decision last-3-of-seq)) "BUY" "SELL")]
+                         (if (>= (count updated-closing) 3)
+                           (conj res {:open_p     (last last-3-of-seq)
+                                      :close_p    (nth updated-closing 3) 
+                                      :date_ex    (first (last current-seq))    
+                                      :action     decision}) 
+                           res))))))
+      (filter (fn [{:keys [close_p open_p]}]
+                ; if the difference is more than 50%, discard the result
+                ; those are probably stock splits
+                (<= (stocks.utils/abs (/ (- open_p close_p)
+                                         open_p))
+                    1.5)))))
+
+(defn fetch-simulation-results
+  "Runs one run of simulation for the particular symbol, DOES NOT 
+  persist the result "
+  [sym]
+  )
 
 (defn accuracy [sym]
   (let [data (fetch-data sym)]
