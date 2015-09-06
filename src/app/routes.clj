@@ -9,6 +9,7 @@
             [clojure.string :as str]
             [stocks.core :as core]
             [stocks.utils]
+            [hiccup.page :as page]
             [korma.core :as sql]))
 
 (defn get-prices
@@ -60,7 +61,36 @@
                                         (sql/where {:symbol [in core/DJIA-list]})))}
       "application/json")))
 
-
+(defn get-DJIA-summary
+  ([m]
+   (let [summary (stocks.core/DJIA-summary)]
+     (page/html5
+       [:head
+        (page/include-css "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css")]
+       [:body
+        [:div.container
+         [:div.page-header
+          [:h2 "DJIA Summary"]]
+         [:p "Total profits : " 
+          [:b (reduce + 0 (map (fn [[k v]] (:profit v)) summary))]]
+         [:p "Stop loss : "
+          [:b stocks.core/STOP-LOSS]]
+         [:p "Take Profit : "
+          [:b stocks.core/TAKE-PROFIT]]
+         [:table.table
+          [:thead
+           [:th "Symbol"]
+           [:th "Profit"]
+           [:th "Number of Orders"] 
+           [:th "Profit per Order"]]
+          [:tbody
+           (map (fn [[sym {:keys [orders profit]}]]
+                  [:tr
+                   [:td sym]
+                   [:td profit]
+                   [:td (count orders)]
+                   [:td (format "%.2f" (/ (double profit) (count orders)))]])
+                summary)]]]]))))
 
 (defroutes app-routes
   (GET "/" [] "hello world")
@@ -68,6 +98,7 @@
   (GET "/popular_companies" [] get-popular-companies)
   (GET "/company" [] get-company)
   (GET "/simulation" [] get-simulation)
+  (GET "/DJIA-summary" [] get-DJIA-summary)
   (route/resources "/")
   (route/not-found "Not found"))
 

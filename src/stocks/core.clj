@@ -68,6 +68,10 @@
                                       :series-label ~label))
                  (partition 2 features)))))
 
+(def STOP-LOSS 0.02)
+(def TAKE-PROFIT 0.15)
+
+; Not used, left for reference
 (defn draw-flat-histogram
   ([sym] (draw-flat-histogram sym 100))
   ([sym lim]
@@ -117,6 +121,33 @@
   (if (empty? v)
     0 (stats/mean v)))
 
+(defn find-closing-price*
+  [profit-fnc open-p prices]
+  (loop [prices prices
+         best open-p]
+    (if (empty? prices)
+      nil
+      (let [head (first prices)]
+        (cond
+          (< (profit-fnc head) (- (* STOP-LOSS head)))
+          ; settle for a stop loss
+          head
+          (and (> (profit-fnc head) (* TAKE-PROFIT open-p))
+               (< (+ head (* STOP-LOSS best)) best))
+          ; surpass the take-profit mark
+          head
+          :else
+          (recur (next prices)
+                 (max head best)))))))
+
+(defn find-closing-price
+  [decision open-p prices]
+  (find-closing-price* (if (= "SELL" decision)
+                         #(- open-p %)
+                         #(- % open-p))
+                       open-p
+                       prices))
+
 (defn simulate
   [data]
   (->> (loop [timestamps (map :date data)
@@ -144,13 +175,20 @@
                        updated-closing
                        (next flat-seq)
                        (let [last-3-of-seq (->> current-seq (mapv second) (peek-x 3))
-                             decision (if (= UP (apply get-decision last-3-of-seq)) "BUY" "SELL")]
-                         (if (>= (count updated-closing) 3)
-                           (conj res {:open_p     (last last-3-of-seq)
-                                      :close_p    (nth updated-closing 3) 
-                                      :date_ex    (first (last current-seq))    
-                                      :action     decision}) 
-                           res))))))
+                             decision (if (= UP (apply get-decision last-3-of-seq))
+                                        "BUY" "SELL")
+                             open-p (last last-3-of-seq)
+                             close-p (find-closing-price decision open-p
+                                                         updated-closing)]
+                         ; we need to determine when to let go.
+                         ; these are determined by stop loss and profit exit
+                         ; strategy
+                         (if (nil? close-p)
+                           res
+                           (conj res {:open_p     open-p
+                                      :close_p    close-p 
+                                      :date_ex    (first (last current-seq))
+                                      :action     decision})))))))
       (filter (fn [{:keys [close_p open_p]}]
                 ; if the difference is more than 50%, discard the result
                 ; those are probably stock splits
@@ -170,6 +208,14 @@
        (sql/insert :simulation))
   (sql/select :simulation (sql/where (= :symbol sym))))
 
+(defn calculate-profit
+  [orders]
+  (reduce (fn [m order]
+            (+ m (if (= (:action order) "BUY")
+                   (- (:close_p order) (:open_p order))
+                   (- (:open_p order) (:close_p order)))))
+          0 orders))
+
 (defn fetch-simulation-results
   "Runs one run of simulation for the particular symbol, DOES NOT 
   persist the result "
@@ -179,6 +225,16 @@
       results
       (run-and-cache-simulation sym))))
 
+(defn DJIA-summary
+  []
+  (->> DJIA-list
+       (map (fn [sym] 
+             (let [orders (fetch-simulation-results sym)]
+               [sym {:profit (calculate-profit orders) 
+                     :orders orders}])))
+       (into {})))
+
+; Not used. left for reference
 (defn accuracy [sym]
   (let [data (fetch-data sym)]
     (loop [timestamps (map :date data)

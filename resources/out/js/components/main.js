@@ -21,7 +21,7 @@ const formatDate = (date) => {
         }
     }
     console.log(date);
-    var x = `${date.getFullYear()}-${pad(date.getMonth())}-${pad(date.getDay())}`;
+    var x = `${date.getFullYear()}-${pad(1 + date.getMonth())}-${pad(date.getDay())}`;
     return x;
 }
 

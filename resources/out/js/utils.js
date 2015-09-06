@@ -23,8 +23,15 @@ const toQueryString = (obj) => {
 
     return arr.join("&");
 }
+const padZero = function(n) {
+    if (n < 10) {
+        return "0" + n.toString()
+    } else {
+        return n.toString()
+    }
+}
 const formatDate = function(date) {
-    return `${date.getFullYear()}-${date.getMonth()}-${date.getDay()}`
+    return `${date.getFullYear()}-${padZero(1 + date.getMonth())}-${padZero(date.getDay())}`
 }
 
 module.exports = { httpGet, date, toQueryString, formatDate };

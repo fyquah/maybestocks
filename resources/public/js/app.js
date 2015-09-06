@@ -29508,7 +29508,7 @@ var formatDate = function formatDate(date) {
         }
     };
     console.log(date);
-    var x = date.getFullYear() + "-" + pad(date.getMonth()) + "-" + pad(date.getDay());
+    var x = date.getFullYear() + "-" + pad(1 + date.getMonth()) + "-" + pad(date.getDay());
     return x;
 };
 
@@ -30071,8 +30071,15 @@ var toQueryString = function toQueryString(obj) {
 
     return arr.join("&");
 };
+var padZero = function padZero(n) {
+    if (n < 10) {
+        return "0" + n.toString();
+    } else {
+        return n.toString();
+    }
+};
 var formatDate = function formatDate(date) {
-    return date.getFullYear() + "-" + date.getMonth() + "-" + date.getDay();
+    return date.getFullYear() + "-" + padZero(1 + date.getMonth()) + "-" + padZero(date.getDay());
 };
 
 module.exports = { httpGet: httpGet, date: date, toQueryString: toQueryString, formatDate: formatDate };
