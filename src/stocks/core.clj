@@ -122,29 +122,31 @@
     0 (stats/mean v)))
 
 (defn find-closing-price*
-  [profit-fnc open-p prices]
+  [profit-fnc decision open-p prices]
   (loop [prices prices
          best open-p]
     (if (empty? prices)
       nil
       (let [head (first prices)]
         (cond
-          (< (profit-fnc head) (- (* STOP-LOSS head)))
+          (< (profit-fnc head) (- (* STOP-LOSS open-p)))
           ; settle for a stop loss
           head
-          (and (> (profit-fnc head) (* TAKE-PROFIT open-p))
-               (< (+ head (* STOP-LOSS best)) best))
+          (and (> (profit-fnc head) (* TAKE-PROFIT open-p)))
           ; surpass the take-profit mark
           head
           :else
           (recur (next prices)
-                 (max head best)))))))
+                 (if (= "SELL" decision)
+                   (min head best)
+                   (max head best))))))))
 
 (defn find-closing-price
   [decision open-p prices]
   (find-closing-price* (if (= "SELL" decision)
                          #(- open-p %)
                          #(- % open-p))
+                       decision 
                        open-p
                        prices))
 
@@ -165,8 +167,8 @@
                      res)
               :else
               (let [current-seq (first flat-seq)
-                    updated-timestamps (remove-until #(= % (-> flat-seq second
-                                                               first first))
+                    updated-timestamps (remove-until #(= % (-> current-seq
+                                                               last first))
                                                      timestamps)
                     updated-closing (drop (- (count timestamps)
                                              (count updated-timestamps))
