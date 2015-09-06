@@ -158,11 +158,26 @@
                                          open_p))
                     1.5)))))
 
+(defn run-and-cache-simulation
+  [sym]
+  (->> (fetch-data sym)
+       (simulate)
+       (map (fn [m]
+              (assoc m :date_ex
+                     (new java.sql.Date (:date_ex m))
+                     :symbol sym)))
+       (sql/values)
+       (sql/insert :simulation))
+  (sql/select :simulation (sql/where (= :symbol sym))))
+
 (defn fetch-simulation-results
   "Runs one run of simulation for the particular symbol, DOES NOT 
   persist the result "
   [sym]
-  )
+  (let [results (sql/select :simulation (sql/where (= :symbol sym)))]
+    (if (> (count results) 0)
+      results
+      (run-and-cache-simulation sym))))
 
 (defn accuracy [sym]
   (let [data (fetch-data sym)]

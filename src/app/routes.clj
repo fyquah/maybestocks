@@ -38,10 +38,21 @@
                json/write-str)}
     "application/json")))
 
+(defn get-simulation
+  ([{{sym :symbol} :params}]
+   (response/content-type
+     {:body (->> (core/fetch-simulation-results sym)
+                 (map (fn [m]
+                        (assoc m :date_ex
+                               (.getTime (:date_ex m)))))
+                 (json/write-str))}
+     "application/json")))
+
 (defroutes app-routes
   (GET "/" [] "hello world")
   (GET "/prices" [] get-prices)
   (GET "/company" [] get-company)
+  (GET "/simulation" [] get-simulation)
   (route/resources "/")
   (route/not-found "Not found"))
 
