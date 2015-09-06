@@ -81,7 +81,7 @@ module.exports = React.createClass({
             symbol: symbol
         })
 
-        utils.httpGet("/companies").
+        utils.httpGet("/popular_companies").
         then((res) => {
             this.setState({
                 companies_list: res
@@ -112,6 +112,16 @@ module.exports = React.createClass({
             })
         }
     },
+    handleSelectPopularCompany: function() {
+        var dom = React.findDOMNode(this.refs.popular_company);
+
+        if (dom.value === "null") {
+            return;
+        } else {
+            React.findDOMNode(this.refs.symbol).value = dom.value;
+            this.handleSelectDate({preventDefault: function(){}})
+        }
+    },
     render: function(){
         return (
             <div className="container">
@@ -136,21 +146,7 @@ module.exports = React.createClass({
                 </div>
                 <div className="col-md-3">
                     <p>
-                        {(() => {
-                            console.log(this.state);
-                            if (this.state.companies_list) {
-                                return <div className="form-group">
-                                    <select className="form-control">
-                                        {this.state.companies_list.map(function(o){
-                                            return <option>{o.company} ({o.symbol})</option>
-                                        })}
-                                    </select>
-                                </div>
 
-                            } else {
-                                return <div></div>
-                            }
-                        })()}
                         <div onBlur={this.handleSelectDate} className="form-group">
                             <label>From</label>
                             <input className="form-control" type="date" name="from" ref="from" />
@@ -163,6 +159,28 @@ module.exports = React.createClass({
                             <label>Company</label>
                             <input className="form-control" type="text" name="symbol" ref="symbol" placeholder="Company Symbol" />
                         </div>
+
+                        <div className="form-group">
+                            <p><em>Select from popular companies</em></p>
+                            {(() => {
+                                console.log(this.state);
+                                if (this.state.companies_list) {
+                                    return <div className="form-group">
+                                        <select onChange={this.handleSelectPopularCompany} ref="popular_company"
+                                             className="form-control">
+                                             <option value={"null"}>Select ...</option>
+                                            {this.state.companies_list.map(function(o){
+                                                return <option value={o.symbol}>{o.company} ({o.symbol})</option>
+                                            })}
+                                        </select>
+                                    </div>
+
+                                } else {
+                                    return <div></div>
+                                }
+                            })()}
+                        </div>
+
                         <button onClick={this.handleSelectDate} className="btn btn-primary" ref="button">
                             Update Data
                         </button>{ " " }

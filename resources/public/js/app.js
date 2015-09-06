@@ -29574,7 +29574,7 @@ module.exports = React.createClass({
             symbol: symbol
         });
 
-        utils.httpGet("/companies").then(function (res) {
+        utils.httpGet("/popular_companies").then(function (res) {
             _this2.setState({
                 companies_list: res
             });
@@ -29602,6 +29602,16 @@ module.exports = React.createClass({
                 to: new Date(to.value),
                 symbol: symbol.value.toUpperCase()
             });
+        }
+    },
+    handleSelectPopularCompany: function handleSelectPopularCompany() {
+        var dom = React.findDOMNode(this.refs.popular_company);
+
+        if (dom.value === "null") {
+            return;
+        } else {
+            React.findDOMNode(this.refs.symbol).value = dom.value;
+            this.handleSelectDate({ preventDefault: function preventDefault() {} });
         }
     },
     render: function render() {
@@ -29636,31 +29646,6 @@ module.exports = React.createClass({
                 React.createElement(
                     "p",
                     null,
-                    (function () {
-                        console.log(_this3.state);
-                        if (_this3.state.companies_list) {
-                            return React.createElement(
-                                "div",
-                                { className: "form-group" },
-                                React.createElement(
-                                    "select",
-                                    { className: "form-control" },
-                                    _this3.state.companies_list.map(function (o) {
-                                        return React.createElement(
-                                            "option",
-                                            null,
-                                            o.company,
-                                            " (",
-                                            o.symbol,
-                                            ")"
-                                        );
-                                    })
-                                )
-                            );
-                        } else {
-                            return React.createElement("div", null);
-                        }
-                    })(),
                     React.createElement(
                         "div",
                         { onBlur: this.handleSelectDate, className: "form-group" },
@@ -29690,6 +29675,50 @@ module.exports = React.createClass({
                             "Company"
                         ),
                         React.createElement("input", { className: "form-control", type: "text", name: "symbol", ref: "symbol", placeholder: "Company Symbol" })
+                    ),
+                    React.createElement(
+                        "div",
+                        { className: "form-group" },
+                        React.createElement(
+                            "p",
+                            null,
+                            React.createElement(
+                                "em",
+                                null,
+                                "Select from popular companies"
+                            )
+                        ),
+                        (function () {
+                            console.log(_this3.state);
+                            if (_this3.state.companies_list) {
+                                return React.createElement(
+                                    "div",
+                                    { className: "form-group" },
+                                    React.createElement(
+                                        "select",
+                                        { onChange: _this3.handleSelectPopularCompany, ref: "popular_company",
+                                            className: "form-control" },
+                                        React.createElement(
+                                            "option",
+                                            { value: "null" },
+                                            "Select ..."
+                                        ),
+                                        _this3.state.companies_list.map(function (o) {
+                                            return React.createElement(
+                                                "option",
+                                                { value: o.symbol },
+                                                o.company,
+                                                " (",
+                                                o.symbol,
+                                                ")"
+                                            );
+                                        })
+                                    )
+                                );
+                            } else {
+                                return React.createElement("div", null);
+                            }
+                        })()
                     ),
                     React.createElement(
                         "button",
