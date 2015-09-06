@@ -13,7 +13,6 @@
 
 (defn get-prices
   ([{{:keys [fromMonth fromYear toMonth toYear symbol]} :params}]
-   (println fromMonth fromYear)
    (response/content-type
     (let [fromDateString (str fromYear "/" fromMonth "/01")
           toDateString (str toYear "/" toMonth "/31")

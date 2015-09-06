@@ -155,8 +155,8 @@
                 ; if the difference is more than 50%, discard the result
                 ; those are probably stock splits
                 (<= (stocks.utils/abs (/ (- open_p close_p)
-                                         open_p))
-                    1.5)))))
+                                         (min close_p open_p)))
+                    0.5)))))
 
 (defn run-and-cache-simulation
   [sym]
